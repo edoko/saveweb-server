@@ -1,26 +1,53 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+const createError = require('http-errors');
+const express = require('express');
+const path = require('path');
+const logger = require('morgan');
+const cors = require('cors')
+const bodyParser = require('body-parser')
+const mongoose = require('mongoose')
+const passport = require('passport')
+const LocalStrategy = require('passport-local').Strategy
+const session = require('express-session')
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+const auth = require('./routes/auth')
+const user = require('./models/user')
 
-var app = express();
+const app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
+// default settings
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: 'false' }))
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
+// enable cors
+app.use(cors())
+
+// passport & express-session
+app.use(session({
+  secret: 'd%$oiu*f$#nj%&*(&(e(rc(*wetr*c$w%*(l',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 60000 }
+}))
+app.use(passport.initialize())
+app.use(passport.session())
+
+// mongodb connect
+mongoose.connect('mongodb://localhost:27017/saveweb', { useNewUrlParser: true })
+mongoose.Promise = global.Promise
+
+app.use('/api/v1/auth', auth)
+
+passport.use(new LocalStrategy(user.authenticate()))
+passport.serializeUser(user.serializeUser())
+passport.deserializeUser(user.deserializeUser())
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
